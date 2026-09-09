@@ -61,6 +61,64 @@ export function linearCharTimes(length: number, total: number) {
   return { starts, ends };
 }
 
+const TAG = /\[[a-zA-Z_-]{2,20}\]/g;
+
+/** Drop delivery tags like `[excited]`; providers get the tagged text, captions the clean one. */
+export const stripTags = (text: string) => text.replace(TAG, ' ').replace(/\s+/g, ' ').trim();
+
+const KEY = /[\p{L}\p{N}]/u;
+const keyOf = (ch: string | undefined) => (ch && KEY.test(ch) ? ch.toLowerCase() : '');
+
+/** Runs of untimed chars share the gap to the next timed char; only key glyphs take width. */
+function fillGaps(text: string, spans: ([number, number] | null)[], total: number) {
+  const starts = new Array<number>(text.length);
+  const ends = new Array<number>(text.length);
+  for (let i = 0; i < text.length; ) {
+    const span = spans[i];
+    if (span) {
+      [starts[i], ends[i]] = span;
+      i += 1;
+      continue;
+    }
+    let next = i;
+    while (next < text.length && !spans[next]) next += 1;
+    const from = i ? (ends[i - 1] as number) : 0;
+    const until = Math.max(spans[next]?.[0] ?? total, from);
+    const keys = text.slice(i, next).split('').filter(keyOf).length;
+    let t = from;
+    let k = 0;
+    for (let c = i; c < next; c += 1) {
+      starts[c] = t;
+      if (keyOf(text[c])) t = from + ((until - from) * (k += 1)) / keys;
+      ends[c] = t;
+    }
+    i = next;
+  }
+  return { starts, ends };
+}
+
+/** Per-character timing from word timings: key glyphs align in order, the rest fill the gaps. */
+export function charTimesFromWords(text: string, words: Word[], total: number) {
+  const timeline = words.flatMap((w) => {
+    const glyphs = [...w.text].map(keyOf).filter(Boolean);
+    const step = (w.end - w.start) / glyphs.length;
+    return glyphs.map((ch, k) => ({ ch, start: w.start + step * k, end: w.start + step * (k + 1) }));
+  });
+  const spans: ([number, number] | null)[] = new Array(text.length).fill(null);
+  let j = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = keyOf(text[i]);
+    if (!ch) continue;
+    const hit = timeline.slice(j, j + 6).findIndex((t) => t.ch === ch);
+    if (hit < 0) continue;
+    j += hit;
+    const t = timeline[j] as { start: number; end: number };
+    spans[i] = [t.start, Math.max(t.end, t.start)];
+    j += 1;
+  }
+  return fillGaps(text, spans, total);
+}
+
 const at = (times: number[], index: number, fallback: number) =>
   times[Math.min(Math.max(index, 0), times.length - 1)] ?? fallback;
 
@@ -167,7 +225,7 @@ export function buildAss(
     style('Title', font, 52, 8, Math.round(height * 0.14)),
     '',
     '[Events]',
-    'Format: Layer, Start, End, Style, Name, MarginL, MarginR, Effect, Text',
+    'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
     ...titles.filter((t) => t.text.trim()).map((t) => line('Title', t)),
     ...captions.filter((c) => c.text.trim()).map((c) => line('Caption', c)),
     '',

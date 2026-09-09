@@ -1,12 +1,13 @@
 import path from 'node:path';
 import { cfg } from '../config';
-import { hasElevenLabs, ttsWithTimestamps } from '../providers/elevenlabs';
-import { speech } from '../providers/openai';
+import type { Resolved, Speech } from '../plugin';
 import { clamp, duration, log, readJson, writeAtomic, writeJson } from '../util';
 import {
+  charTimesFromWords,
   groupCaptions,
   linearCharTimes,
   spanTime,
+  stripTags,
   tokenize,
   wordsFromCharTimes,
   type Caption,
@@ -50,43 +51,42 @@ export function contiguous(spans: [number, number][], total: number): [number, n
   });
 }
 
-export async function voiceFor(dir: string, script: ClipScript): Promise<VoiceResult> {
+/** Whatever alignment the provider returned, as char times for the clean text. */
+function charTimes(speech: Speech, text: string, total: number) {
+  if (speech.charTimes?.starts.length === text.length) return speech.charTimes;
+  if (speech.charTimes) log('voice: alignment out of step with the text, timing another way');
+  if (speech.words?.length) return charTimesFromWords(text, speech.words, total);
+  return linearCharTimes(text.length, total);
+}
+
+export async function voiceFor(
+  dir: string,
+  script: ClipScript,
+  resolved: Resolved,
+): Promise<VoiceResult> {
   const audio = path.join(dir, 'narration.mp3');
   const metaFile = path.join(dir, 'voice.json');
   const hit = await readJson<VoiceResult>(metaFile);
   if (hit && (await Bun.file(audio).exists())) return hit;
 
-  const text = narrationText(script.beats);
-  let starts: number[] | null = null;
-  let ends: number[] | null = null;
-
-  if (hasElevenLabs()) {
-    const res = await ttsWithTimestamps(text, cfg.voiceId);
-    await writeAtomic(audio, res.audio);
-    if (res.alignment && res.alignment.characters.length === text.length) {
-      starts = res.alignment.character_start_times_seconds;
-      ends = res.alignment.character_end_times_seconds;
-    } else {
-      log('voice: alignment missing or out of step with the text, timing by char rate');
-    }
-  } else {
-    log('voice: no ELEVENLABS_API_KEY, using OpenAI speech with derived timings');
-    await writeAtomic(audio, await speech(text));
-  }
+  const clean = script.beats.map((beat) => ({ narration: stripTags(beat.narration) }));
+  const text = narrationText(clean);
+  const speech = await resolved.voice.synthesize({
+    text: narrationText(script.beats),
+    lang: cfg.lang,
+    persona: resolved.persona,
+  });
+  await writeAtomic(audio, speech.audio);
 
   const durationSec = await duration(audio);
-  const linear = linearCharTimes(text.length, durationSec);
-  const charStart = starts ?? linear.starts;
-  const charEnd = ends ?? linear.ends;
+  const { starts, ends } = charTimes(speech, text, durationSec);
+  const words = wordsFromCharTimes(tokenize(text), starts, ends, durationSec);
 
-  const words = wordsFromCharTimes(tokenize(text), charStart, charEnd, durationSec);
   const result: VoiceResult = {
     audio,
     durationSec,
     beats: contiguous(
-      charSpans(script.beats).map(([from, to]) =>
-        spanTime(from, to, charStart, charEnd, durationSec),
-      ),
+      charSpans(clean).map(([from, to]) => spanTime(from, to, starts, ends, durationSec)),
       durationSec,
     ),
     captions: groupCaptions(words),

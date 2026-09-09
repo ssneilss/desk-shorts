@@ -3,9 +3,11 @@ import {
   assEscape,
   assTime,
   buildAss,
+  charTimesFromWords,
   groupCaptions,
   joinWords,
   linearCharTimes,
+  stripTags,
   tokenize,
   wordsFromCharTimes,
   type Word,
@@ -72,6 +74,95 @@ describe('tokenizing', () => {
     const mapped = wordsFromCharTimes(tokenize(text), starts, ends, 8);
     expect(mapped[0]?.start).toBeCloseTo(0, 5);
     expect(mapped[2]?.end).toBeCloseTo(8, 5);
+  });
+});
+
+describe('delivery tags', () => {
+  test('are stripped from the narration used for captions', () => {
+    expect(stripTags('[excited] PDD beat by 4%')).toBe('PDD beat by 4%');
+    expect(stripTags('毛利率[serious]回升')).toBe('毛利率 回升');
+    expect(stripTags('up 4% [see note]')).toBe('up 4% [see note]');
+  });
+});
+
+describe('char times from words', () => {
+  test('lands each word on its own chars', () => {
+    const text = 'PDD beat guidance';
+    const { starts, ends } = charTimesFromWords(
+      text,
+      [
+        { text: 'PDD', start: 0, end: 1 },
+        { text: 'beat', start: 1, end: 2 },
+        { text: 'guidance', start: 2, end: 3 },
+      ],
+      3,
+    );
+    expect(starts).toHaveLength(text.length);
+    expect(starts[0]).toBeCloseTo(0, 5);
+    expect(starts[text.indexOf('beat')]).toBeCloseTo(1, 5);
+    expect(starts[text.indexOf('guidance')]).toBeCloseTo(2, 5);
+    expect(ends[text.length - 1]).toBeCloseTo(3, 5);
+  });
+
+  test('interpolates tokens the provider skipped', () => {
+    const text = 'a b c d';
+    const { starts } = charTimesFromWords(
+      text,
+      [
+        { text: 'a', start: 0, end: 1 },
+        { text: 'd', start: 3, end: 4 },
+      ],
+      4,
+    );
+    expect(starts[text.indexOf('b')]).toBeCloseTo(1, 5);
+    expect(starts[text.indexOf('c')]).toBeCloseTo(2, 5);
+    expect(starts[text.indexOf('d')]).toBeCloseTo(3, 5);
+  });
+
+  test('spreads a multi-glyph CJK word over its glyphs', () => {
+    const text = '毛利率回升';
+    const { starts, ends } = charTimesFromWords(
+      text,
+      [
+        { text: '毛利率', start: 0, end: 3 },
+        { text: '回升', start: 3, end: 5 },
+      ],
+      5,
+    );
+    expect(starts[0]).toBeCloseTo(0, 5);
+    expect(starts[3]).toBeCloseTo(3, 5);
+    expect(ends[4]).toBeCloseTo(5, 5);
+  });
+
+  test('ignores punctuation when matching', () => {
+    const text = 'Margins held, then fell.';
+    const { starts } = charTimesFromWords(
+      text,
+      [
+        { text: 'Margins', start: 0, end: 1 },
+        { text: 'held', start: 1, end: 2 },
+        { text: 'then', start: 2, end: 3 },
+        { text: 'fell', start: 3, end: 4 },
+      ],
+      4,
+    );
+    expect(starts[text.indexOf('then')]).toBeCloseTo(2, 5);
+  });
+
+  test('interpolates digits the transcriber spelled out', () => {
+    const text = '营收391亿';
+    const { starts, ends } = charTimesFromWords(
+      text,
+      [
+        { text: '营收', start: 0, end: 1 },
+        { text: '三百九十一', start: 1, end: 3 },
+        { text: '亿', start: 3, end: 4 },
+      ],
+      4,
+    );
+    expect(starts[2]).toBeCloseTo(1, 5);
+    expect(ends[4]).toBeCloseTo(3, 5);
+    expect(starts[5]).toBeCloseTo(3, 5);
   });
 });
 

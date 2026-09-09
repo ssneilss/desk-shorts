@@ -13,16 +13,18 @@ const key = () => {
 
 const auth = () => ({ authorization: `Bearer ${key()}` });
 
-/** Text model for `generateObject`; falls back to OpenRouter when OpenAI is absent. */
+/** Text model for `generateObject`: OpenRouter when it has a key, else OpenAI. */
 export function textModel() {
-  if (process.env.OPENAI_API_KEY?.trim()) {
-    return createOpenAI({ apiKey: key(), baseURL: OPENAI_BASE })(cfg.textModel);
-  }
   const openrouter = process.env.OPENROUTER_API_KEY?.trim();
-  if (!openrouter) throw new Error('set OPENAI_API_KEY or OPENROUTER_API_KEY');
-  return createOpenAI({ apiKey: openrouter, baseURL: OPENROUTER_BASE })(
-    cfg.textModel.includes('/') ? cfg.textModel : `openai/${cfg.textModel}`,
-  );
+  if (openrouter) {
+    return createOpenAI({ apiKey: openrouter, baseURL: OPENROUTER_BASE })(
+      cfg.textModel.includes('/') ? cfg.textModel : `openai/${cfg.textModel}`,
+    );
+  }
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    throw new Error('set OPENROUTER_API_KEY or OPENAI_API_KEY');
+  }
+  return createOpenAI({ apiKey: key(), baseURL: OPENAI_BASE })(cfg.textModel);
 }
 
 /** `POST /audio/speech` — mp3 bytes, no timings. */
@@ -32,11 +34,15 @@ export const speech = (input: string, voice = 'alloy') =>
     json: { model: cfg.ttsModel, voice, input, response_format: 'mp3' },
   });
 
-/** `POST /images/generations` — one portrait PNG. */
-export async function image(prompt: string, size = '1024x1536'): Promise<Uint8Array> {
+/** `POST /images/generations` — one portrait PNG; 1024x1536 is the closest size to 9:16. */
+export async function image(
+  prompt: string,
+  model: string,
+  size = '1024x1536',
+): Promise<Uint8Array> {
   const res = await httpJson<{ data?: { b64_json?: string; url?: string }[] }>(
     `${OPENAI_BASE}/images/generations`,
-    { headers: auth(), json: { model: cfg.imageModel, prompt, size, n: 1 } },
+    { headers: auth(), json: { model, prompt, size, n: 1 } },
   );
   const first = res.data?.[0];
   if (first?.b64_json) return Buffer.from(first.b64_json, 'base64');

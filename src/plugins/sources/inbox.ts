@@ -1,9 +1,9 @@
 import { readdir, rename } from 'node:fs/promises';
 import path from 'node:path';
-import { paths } from '../config';
-import { SHORTS_SOURCE_KINDS, type ShortsSourceKind } from '../schema';
-import { ensureDir, extractTickers, log } from '../util';
-import type { SourceItem } from './index';
+import { paths } from '../../config';
+import type { Source, SourceItem } from '../../plugin';
+import { SHORTS_SOURCE_KINDS, type ShortsSourceKind } from '../../schema';
+import { ensureDir, extractTickers, httpsUrls, log } from '../../util';
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
@@ -49,7 +49,8 @@ export async function loadInbox(date: string): Promise<SourceItem[]> {
       kind: asKind(meta.kind),
       title,
       body: body.replace(/^#\s+.+$/m, '').trim(),
-      href: meta.href?.startsWith('https://') ? meta.href : undefined,
+      href: httpsUrls([meta.href])[0],
+      images: httpsUrls((meta.images ?? '').split(/[,\s]+/)),
       tickers: extractTickers(`${title} ${body.slice(0, 600)}`),
       publishedAt: meta.date ?? date,
       file,
@@ -67,3 +68,5 @@ export async function archiveInbox(items: SourceItem[]) {
   }
   log(`archived ${files.length} inbox file(s) to inbox/done/`);
 }
+
+export const inboxSource: Source = { id: 'inbox', load: loadInbox };

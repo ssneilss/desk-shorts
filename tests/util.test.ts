@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { parseFrontMatter } from '../src/sources/inbox';
-import { clipId, extractTickers, stripHtml } from '../src/util';
+import { parseFrontMatter } from '../src/plugins/sources/inbox';
+import { capText, clipId, extractTickers, httpsUrls, shiftDate, stripHtml } from '../src/util';
 
 describe('clip ids', () => {
   const href = 'https://example.com/pdd-2q';
@@ -37,6 +37,31 @@ describe('extractTickers', () => {
     expect(found).toContain('BABA');
     expect(found).not.toContain('CEO');
     expect(found).not.toContain('GDP');
+  });
+});
+
+describe('httpsUrls', () => {
+  test('keeps https urls and drops everything else', () => {
+    expect(httpsUrls(['https://a/x.png', 'http://b', '', undefined, null])).toEqual([
+      'https://a/x.png',
+    ]);
+  });
+});
+
+describe('capText', () => {
+  test('passes short text through and trims long text on a word boundary', () => {
+    expect(capText('short', 40)).toBe('short');
+    const capped = capText(`${'word '.repeat(400)}tail`, 100);
+    expect(capped.length).toBeLessThanOrEqual(101);
+    expect(capped.endsWith('…')).toBe(true);
+  });
+});
+
+describe('shiftDate', () => {
+  test('walks days across month boundaries', () => {
+    expect(shiftDate('2026-09-09', -1)).toBe('2026-09-08');
+    expect(shiftDate('2026-09-01', -5)).toBe('2026-08-27');
+    expect(shiftDate('2026-09-09', 0)).toBe('2026-09-09');
   });
 });
 

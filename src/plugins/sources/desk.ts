@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { cfg } from '../config';
-import { extractTickers } from '../util';
-import type { SourceItem } from './index';
-import { s3Latest, s3Text } from './s3';
+import { cfg } from '../../config';
+import type { Source, SourceItem } from '../../plugin';
+import { s3Latest, workspaceFile } from '../../providers/s3';
+import { extractTickers, httpsUrls } from '../../util';
 
 const story = z
   .object({
@@ -42,7 +42,7 @@ const deskDoc = z
 
 type Story = z.infer<typeof story>;
 
-const httpsOnly = (url?: string) => (url?.startsWith('https://') ? url : undefined);
+const DESK_PREFIX = () => `projects/${cfg.deskProjectId}/explore/daily/`;
 
 function fromStory(s: Story, publishedAt?: string): SourceItem {
   const body = [s.standfirst, s.summary, s.figures].filter(Boolean).join('\n\n');
@@ -51,19 +51,18 @@ function fromStory(s: Story, publishedAt?: string): SourceItem {
     title: s.headline,
     body,
     href: s.href,
-    image: httpsOnly(s.image),
+    images: httpsUrls([s.image]),
     tickers: extractTickers(`${s.headline} ${body}`, s.badges),
     publishedAt,
   };
 }
 
-const DESK_PREFIX = () => `projects/${cfg.deskProjectId}/explore/daily/`;
-
 export async function loadDesk(date: string): Promise<SourceItem[]> {
   const name = await s3Latest(DESK_PREFIX(), date);
   if (!name?.endsWith('.json')) return [];
 
-  const parsed = deskDoc.safeParse(JSON.parse(await s3Text(DESK_PREFIX() + name)));
+  const text = await workspaceFile(cfg.deskProjectId, `explore/daily/${name}`);
+  const parsed = deskDoc.safeParse(JSON.parse(text));
   if (!parsed.success) throw new Error(`morning desk ${name}: ${parsed.error.issues[0]?.message}`);
   const doc = parsed.data;
   const at = doc.date ?? name.replace(/\.json$/, '');
@@ -82,9 +81,12 @@ export async function loadDesk(date: string): Promise<SourceItem[]> {
     title: w.title,
     body: w.meta ?? '',
     href: w.href,
+    images: [],
     tickers: extractTickers(`${w.title} ${w.meta ?? ''}`),
     publishedAt: at,
   }));
 
   return [...stories.map((s) => fromStory(s, at)), ...insights];
 }
+
+export const deskSource: Source = { id: 'desk', load: loadDesk };
