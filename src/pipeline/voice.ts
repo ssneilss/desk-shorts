@@ -3,6 +3,7 @@ import { cfg } from '../config';
 import type { Resolved, Speech } from '../plugin';
 import { clamp, duration, log, readJson, writeAtomic, writeJson } from '../util';
 import {
+  captionRules,
   charTimesFromWords,
   groupCaptions,
   linearCharTimes,
@@ -89,7 +90,7 @@ export async function voiceFor(
       charSpans(clean).map(([from, to]) => spanTime(from, to, starts, ends, durationSec)),
       durationSec,
     ),
-    captions: groupCaptions(words),
+    captions: groupCaptions(words, captionRules(cfg.lang)),
   };
 
   await writeJson(metaFile, result);

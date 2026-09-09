@@ -158,6 +158,10 @@ export function joinWords(words: { text: string }[]): string {
 
 const SENTENCE_END = /[.!?;:,。！？；：，]$/;
 
+/** CJK tokens are single glyphs, so a caption holds more of them than English words. */
+export const captionRules = (lang: string) =>
+  lang.startsWith('zh') ? { minWords: 5, maxWords: 14, maxChars: 14 } : {};
+
 export function groupCaptions(
   words: Word[],
   opts: { minWords?: number; maxWords?: number; maxChars?: number; maxGap?: number } = {},
