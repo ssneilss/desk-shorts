@@ -1,0 +1,6 @@
+node_modules/
+shorts/media/
+.work/
+.env
+inbox/done/
+*.log
