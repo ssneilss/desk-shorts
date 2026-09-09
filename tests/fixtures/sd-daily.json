@@ -1,0 +1,143 @@
+{
+  "date": "2026-09-09",
+  "count": 2,
+  "items": [
+    {
+      "url_id": "jI2y2N8",
+      "date": "2026-09-09",
+      "significance": "high",
+      "meaningful": true,
+      "exhibits": [
+        {
+          "type": "table",
+          "title": "Selected China CRO/CDMO 1H26 order backlog growth",
+          "note": "% YoY",
+          "source": "Call transcript",
+          "columns": [
+            "Company",
+            "Backlog growth"
+          ],
+          "align": [
+            "left",
+            "right"
+          ],
+          "rows": [
+            [
+              "WuXi AppTec",
+              "+25%"
+            ],
+            [
+              "WuXi Biologics",
+              "+24%"
+            ]
+          ],
+          "emphasize_rows": [
+            0
+          ]
+        }
+      ],
+      "tickers": [
+        "2359.HK",
+        "2269.HK",
+        "2268.HK",
+        "300760.SZ",
+        "688271.SS",
+        "1801.HK",
+        "6160.HK",
+        "6185.HK",
+        "600276.SS"
+      ],
+      "headline": "China CRO/CDMO earnings beat broadens from GLP-1 commercial orders to early-stage R&D, driving guidance upgrades across the sector",
+      "title": "China in Motion: Healthcare - Earnings Season Takeaways, Sector Outlook",
+      "standfirst": "Morgan Stanley's healthcare team says China's outsourced drug-development complex just posted its strongest quarter in years, with WuXi AppTec's profit up over 90% and early-project counts approaching 2022-23 peaks, while device makers",
+      "takeaway": "The debate has shifted from whether China's pharma services sector is recovering to how long the cycle can run, with 2027 order visibility now the key swing factor for further re-rating.",
+      "category": "health",
+      "category_title": "Healthcare",
+      "broker": "Morgan Stanley",
+      "usable": true,
+      "key_figures": [
+        {
+          "metric": "CRO/CDMO sub-sector 3-month return",
+          "value": "+55%",
+          "context": "vs ~10% for broader healthcare coverage"
+        },
+        {
+          "metric": "WuXi AppTec 1H26 revenue growth",
+          "value": "~48%",
+          "context": "net profit +90%+"
+        }
+      ],
+      "top_takeaway": "The China CDMO cycle is broadening from GLP-1 commercial demand into early-stage R&D, improving visibility into 2027 rather than just this year.",
+      "source_url": "https://alpha-v2.triatasolution.com/preview/jI2y2N8"
+    },
+    {
+      "url_id": "Zb0QWol",
+      "date": "2026-09-09",
+      "significance": "high",
+      "meaningful": true,
+      "exhibits": [
+        {
+          "type": "table",
+          "title": "Bank recapitalization dilution comparison",
+          "note": "Estimated dilution to existing shareholders",
+          "source": "Call transcript",
+          "columns": [
+            "Bank",
+            "Round",
+            "Dilution"
+          ],
+          "align": [
+            "left",
+            "left",
+            "right"
+          ],
+          "rows": [
+            [
+              "China Construction Bank",
+              "2025",
+              "~4%"
+            ],
+            [
+              "ICBC",
+              "2025",
+              "~10%"
+            ]
+          ],
+          "emphasize_rows": [
+            3,
+            4
+          ]
+        }
+      ],
+      "tickers": [
+        "1919.HK",
+        "0316.HK",
+        "1308.HK",
+        "2423.HK",
+        "601155.SS"
+      ],
+      "headline": "Morgan Stanley reads China's bank and insurer recapitalization as preventive stability policy, not a credit-expansion signal",
+      "title": "MS Wednesday Cyclicals Roundtable: China Bank Recapitalization, Insurance Law Revision, Container Shipping, and Existing-Home Sales",
+      "standfirst": "This week's cross-sector roundtable covers a smaller-than-expected RMB300bn state bank injection spread more broadly across insurers and policy lenders, an overhauled Insurance Law tightening risk-based supervision, a container-shipping",
+      "takeaway": "Across financials and property, the common thread is capital discipline over expansion: banks are recapitalized to withstand volatility rather than to lend more, insurers are told to hold more capital against risk rather than scale, and",
+      "category": "macro",
+      "category_title": "Macro & Strategy",
+      "broker": "Morgan Stanley",
+      "usable": false,
+      "key_figures": [
+        {
+          "metric": "Latest bank/insurer capital injection round",
+          "value": "~RMB300bn",
+          "context": "smaller than initially expected"
+        },
+        {
+          "metric": "ICBC estimated dilution",
+          "value": "~3%+",
+          "context": "vs ~10% in prior round"
+        }
+      ],
+      "top_takeaway": "The recapitalization wave reads as balance-sheet insurance for banks and insurers rather than fuel for credit or premium growth acceleration.",
+      "source_url": "https://alpha-v2.triatasolution.com/preview/Zb0QWol"
+    }
+  ]
+}

@@ -85,8 +85,15 @@ export const stripHtml = (html: string) =>
 const TICKER_NOISE = new Set([
   'THE', 'AND', 'FOR', 'USD', 'CNY', 'HKD', 'CEO', 'CFO', 'GDP', 'CPI', 'PPI', 'YOY', 'QOQ',
   'EPS', 'IPO', 'ETF', 'API', 'NEW', 'AI', 'US', 'UK', 'EU', 'HK', 'CN',
-  'Q1', 'Q2', 'Q3', 'Q4', 'FY', 'BPS', 'YTD',
+  'Q1', 'Q2', 'Q3', 'Q4', 'FY', 'BPS', 'YTD', 'EMEA', 'APAC', 'LATAM', 'COGS', 'CAPEX', 'OPEX',
+  'EBITDA', 'EBIT', 'GMV', 'DAU', 'MAU', 'ARPU', 'ASP', 'ROE', 'ROIC', 'AUM', 'NAV', 'PMI', 'FX',
+  'ESG', 'SAAS', 'ADR', 'ADS', 'PE', 'PB', 'EV',
 ]);
+
+const TICKER_RE = /^(?:\d{4,6}(?:\.(?:HK|SZ|SS|SH))?|[A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/;
+
+/** Shaped like an exchange symbol and not a finance acronym. */
+export const isTicker = (value: string) => TICKER_RE.test(value) && !TICKER_NOISE.has(value);
 
 export function extractTickers(
   text: string,
@@ -101,6 +108,16 @@ export function extractTickers(
     if (!TICKER_NOISE.has(match[0])) found.add(match[0]);
   }
   return [...found].slice(0, 6);
+}
+
+export const httpsUrls = (values: (string | null | undefined)[]): string[] =>
+  values.filter((value): value is string => Boolean(value?.startsWith('https://')));
+
+/** Trim to `max` characters on a word boundary; long bodies only cost tokens. */
+export function capText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), max - 200)).trimEnd()}…`;
 }
 
 export const ensureDir = (dir: string) => mkdirSync(dir, { recursive: true });
@@ -138,16 +155,23 @@ export async function cachedFile(
   return file;
 }
 
-type Req = { method?: string; headers?: Record<string, string>; json?: unknown };
+type Req = {
+  method?: string;
+  headers?: Record<string, string>;
+  json?: unknown;
+  /** Multipart body; unlike `json` it leaves the content type to fetch's boundary. */
+  body?: FormData;
+};
 
 async function request(url: string, init: Req): Promise<Response> {
+  const empty = init.json === undefined && init.body === undefined;
   const res = await fetch(url, {
-    method: init.method ?? (init.json === undefined ? 'GET' : 'POST'),
+    method: init.method ?? (empty ? 'GET' : 'POST'),
     headers: {
       ...(init.json === undefined ? {} : { 'content-type': 'application/json' }),
       ...init.headers,
     },
-    body: init.json === undefined ? undefined : JSON.stringify(init.json),
+    body: init.body ?? (init.json === undefined ? undefined : JSON.stringify(init.json)),
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} ${url}\n${tail(await res.text(), 8)}`);
   return res;
@@ -160,4 +184,8 @@ export const httpBytes = async (url: string, init: Req = {}): Promise<Uint8Array
   new Uint8Array(await (await request(url, init)).arrayBuffer());
 
 export const isoDate = (d = new Date()) => d.toISOString().slice(0, 10);
+
+export const shiftDate = (date: string, days: number) =>
+  isoDate(new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000));
+
 export const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { cfg } from '../config';
 import { sh } from '../util';
 
@@ -27,4 +28,21 @@ export async function s3List(prefix: string): Promise<string[]> {
 export async function s3Latest(prefix: string, upTo?: string): Promise<string | null> {
   const names = (await s3List(prefix)).sort((a, b) => b.localeCompare(a));
   return names.find((name) => !upTo || name.slice(0, upTo.length) <= upTo) ?? null;
+}
+
+export const workspaceKey = (projectId: string, relPath: string) =>
+  `projects/${projectId}/${relPath.replace(/^\/+/, '')}`;
+
+/**
+ * One file out of another project's workspace. The runtime mirrors every
+ * workspace onto `$EFS_PATH`, so a sibling project is a sibling directory;
+ * off that host the same key comes from S3.
+ */
+export async function workspaceFile(projectId: string, relPath: string): Promise<string> {
+  const key = workspaceKey(projectId, relPath);
+  if (cfg.efsPath) {
+    const local = Bun.file(path.join(cfg.efsPath, key));
+    if (await local.exists()) return local.text();
+  }
+  return s3Text(key);
 }
