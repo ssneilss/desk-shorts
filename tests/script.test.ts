@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { clipScriptSchema } from '../src/pipeline/script';
+import { clipScriptSchema, system } from '../src/pipeline/script';
 import { registry } from '../src/plugin';
 
 const beat = (scene: unknown) => ({ narration: 'n', onScreen: 'on screen', scene });
@@ -31,5 +31,29 @@ describe('clip script schema', () => {
     const valid = script({ kind: 'concept', visualPrompt: 'p' });
     expect(schema.safeParse({ ...valid, beats: valid.beats.slice(0, 3) }).success).toBe(false);
     expect(schema.safeParse({ ...valid, beats: [...valid.beats, ...valid.beats] }).success).toBe(false);
+  });
+});
+
+describe('system prompt', () => {
+  const persona = registry.persona('analyst-en');
+  const scenes = [registry.scene('concept')];
+
+  test('carries the persona tone and every scene hint', () => {
+    const prompt = system(persona, [registry.scene('concept'), registry.scene('chart')]);
+    expect(prompt).toContain(persona.tone);
+    expect(prompt).toContain(registry.scene('chart').hint);
+  });
+
+  test('carries the style arc and its line rules when a style is picked', () => {
+    const style = registry.style('counter');
+    const prompt = system(persona, scenes, style);
+    expect(prompt).toContain(style.arc);
+    expect(prompt).toContain(style.lines);
+  });
+
+  test('holds the line craft rules that keep the writing sharp', () => {
+    const prompt = system(persona, scenes);
+    expect(prompt).toContain('first eight words');
+    expect(prompt).toContain('kicker');
   });
 });

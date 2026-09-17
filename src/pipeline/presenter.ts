@@ -6,7 +6,6 @@ import { cachedFile, ffmpeg, log } from '../util';
 import { concat, fitVideo } from './segments';
 import type { VoiceResult } from './voice';
 
-/** Greedily group beat windows into contiguous chunks no longer than `maxSeconds`. */
 export function planChunks(
   windows: [number, number][],
   maxSeconds: number,

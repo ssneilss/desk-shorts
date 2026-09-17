@@ -10,12 +10,13 @@ import { deskSource } from './sources/desk';
 import { documentsSource } from './sources/documents';
 import { inboxSource } from './sources/inbox';
 import { signalDeskSource } from './sources/signal-desk';
+import { styles } from './styles';
 import { elevenlabsVoice } from './voices/elevenlabs';
 import { openaiVoice } from './voices/openai';
 import { openrouterVoice } from './voices/openrouter';
 
 export const plugins: Plugin[] = [
-  { id: 'core', personas, recipes },
+  { id: 'core', personas, styles, recipes },
   { id: 'openrouter', voices: [openrouterVoice] },
   { id: 'elevenlabs', voices: [elevenlabsVoice] },
   { id: 'openai', voices: [openaiVoice] },

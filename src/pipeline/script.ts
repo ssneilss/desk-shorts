@@ -2,7 +2,7 @@ import path from 'node:path';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { cfg } from '../config';
-import type { Persona, Resolved, SceneRenderer } from '../plugin';
+import type { Persona, Resolved, SceneRenderer, Style } from '../plugin';
 import { textModel } from '../providers/openai';
 import { isTicker, log, readJson, writeJson } from '../util';
 import type { Selected } from './select';
@@ -48,16 +48,29 @@ export function clipScriptSchema(scenes: SceneRenderer[]) {
 const LANGS: Record<string, string> = { en: 'English', zh: 'Simplified Chinese' };
 
 const BASE = `You write 9:16 vertical short-video scripts for a buy-side investment desk.
-Quote every number exactly as given; never invent figures, dates or quotes. If a fact is absent, leave it out.
-No clickbait, no emoji, no "in this video".
-Structure: 4-6 beats reading aloud in 35-55 seconds total (about 2.6 English words or 4.5 Chinese characters per second, so at most 250 characters of Chinese narration in all), beat 1 is the hook.
-onScreen is a headline fragment of at most 8 words.
+Viewers scroll past anything that sounds like a press release, so the writing has to earn every second — and the facts stay exactly as given.
+
+Facts: quote every number, date, name and quote exactly as the source gives it. Never invent, round or extrapolate, and never make a recommendation the source does not make. If a fact is absent, leave it out.
+
+Structure: 4-6 beats reading aloud in 35-55 seconds total (about 2.6 English words or 4.5 Chinese characters per second, so at most 250 characters of Chinese narration in all). Beat 1 is the hook and the last beat lands the payoff. One idea per beat, and each beat answers the question the beat before it raises.
+
+Lines:
+- Open on the sharpest concrete thing you hold — a figure, a reversal, a contradiction — inside the first eight words. Never open with background, a date, or a legal company name.
+- Vary the rhythm: put a long sentence next to a short one, and keep at least one beat under eight words.
+- Cut throat-clearing ("today we look at", "let us dive in", "as you know") and padding ("significant", "robust", "notable", "arguably", "it is worth noting").
+- Concrete verbs and plain words over desk jargon; if a term is unavoidable, define it in three words and move on.
+- Close on a kicker — what to watch, what breaks it, what it costs — not a summary of what was just said.
+- No clickbait, no manufactured suspense, no emoji, no hashtags, no "in this video".
+
+onScreen is a headline fragment of at most 8 words that adds to the narration instead of repeating it: the number, the name, or the stake.
 tickers holds exchange symbols only (0700.HK, NVDA), never sector or accounting acronyms; leave it empty if unsure.`;
 
-const system = (persona: Persona, scenes: SceneRenderer[]) =>
+export const system = (persona: Persona, scenes: SceneRenderer[], style?: Style) =>
   [
     BASE,
     `Delivery — ${persona.name}: ${persona.tone}`,
+    style ? `Shape — ${style.name}: ${style.arc}` : '',
+    style ? style.lines : '',
     'Every beat also picks one scene; the first listed is the default:',
     ...scenes.map((scene) => `- ${scene.hint}`),
     persona.tags?.length
@@ -100,17 +113,21 @@ export async function scriptFor(
 ): Promise<ClipScript> {
   const file = path.join(dir, 'script.json');
   const schema = clipScriptSchema(resolved.scenes);
-  const hit = await readJson<unknown>(file);
+  const styleId = resolved.style?.id ?? '';
+  const hit = await readJson<{ style?: string }>(file);
   if (hit) {
     const parsed = schema.safeParse(hit);
-    if (parsed.success) return parsed.data as ClipScript;
-    log(`script: cached script does not fit recipe ${resolved.recipe.id}, regenerating`);
+    if (parsed.success && (hit.style ?? '') === styleId) return parsed.data as ClipScript;
+    const why = parsed.success
+      ? `was written in style "${hit.style ?? 'none'}", not "${styleId || 'none'}"`
+      : `does not fit recipe ${resolved.recipe.id}`;
+    log(`script: cached script ${why}, regenerating`);
   }
 
   const { object } = await generateObject({
     model: textModel(),
     schema,
-    system: system(resolved.persona, resolved.scenes),
+    system: system(resolved.persona, resolved.scenes, resolved.style),
     prompt: [
       `Write the script in ${LANGS[cfg.lang] ?? cfg.lang}.`,
       `Source kind: ${item.kind}`,
@@ -127,6 +144,6 @@ export async function scriptFor(
   });
 
   const script = normalise(object as ClipScript, item);
-  await writeJson(file, script);
+  await writeJson(file, { ...script, ...(styleId ? { style: styleId } : {}) });
   return script;
 }

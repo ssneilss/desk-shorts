@@ -29,9 +29,11 @@ export const cfg = {
   voiceId: str('SHORTS_VOICE_ID', '21m00Tcm4TlvDq8ikWAM'),
   recipe: str('SHORTS_RECIPE', 'classic'),
   persona: str('SHORTS_PERSONA'),
+  /** Script shape id; `SHORTS_STYLE` below is the image art direction, not this. */
+  style: str('SHORTS_SCRIPT_STYLE'),
   voice: str('SHORTS_VOICE'),
   avatar: str('SHORTS_AVATAR'),
-  style: str(
+  artStyle: str(
     'SHORTS_STYLE',
     'editorial financial illustration, muted navy/ivory palette, no text, no logos',
   ),
