@@ -103,5 +103,4 @@ const en = (d: Def): Persona => ({
   portraitPrompt: portrait(d.look),
 });
 
-/** Five voices, each as a Mandarin persona `<id>` and an English twin `<id>-en`. */
 export const personas: Persona[] = DEFS.flatMap((d) => [zh(d), en(d)]);

@@ -20,7 +20,7 @@ workspace S3 sync (`projects/<projectId>/shorts/media/…`), which the app presi
 plugins/sources/               pipeline/                            plugins/
   signal-desk  ─┐                sources    load each --sources plugin        ← source
   desk         ─┼─ SourceItem →  select     rank against the book, dedupe, cap
-  documents    ─┤                script     LLM → title, caption, 4-6 beats   ← persona + scene hints
+  documents    ─┤                script     LLM → title, caption, 4-6 beats   ← persona + style + scene hints
   inbox/*.md   ─┘                voice      TTS + timings → captions[]        ← voice
                                  presenter  portrait speaking the narration   ← avatar (optional)
                                  scenes     one seg-<i>.mp4 per beat          ← scene per beat
@@ -28,9 +28,9 @@ plugins/sources/               pipeline/                            plugins/
                                  publish    media + merged, validated daily JSON
 ```
 
-Where the day's items come from, which persona speaks, which TTS runs, which scene kinds a beat may
-pick and whether there is an on-camera presenter are all plugins; a **recipe** composes the
-clip-making ones (see [Plugins](#plugins)).
+Where the day's items come from, which persona speaks, which shape the script takes, which TTS
+runs, which scene kinds a beat may pick and whether there is an on-camera presenter are all
+plugins; a **recipe** composes the clip-making ones (see [Plugins](#plugins)).
 
 Every step caches under `.work/<date>/<clipId>/`, so a rerun resumes rather than repeats. Delete a
 clip's work directory to force it to regenerate.
@@ -89,13 +89,17 @@ like `MEITUAN` is reachable by ticker only.
 
 ## Plugins
 
-A **recipe** names the personas a clip may use, the scene kinds its beats may pick, an optional
-avatar provider and the layout. `SHORTS_RECIPE` selects one (default `classic`).
+A **recipe** names the personas a clip may use, the script styles it may take, the scene kinds its
+beats may pick, an optional avatar provider and the layout. `SHORTS_RECIPE` selects one (default
+`classic`).
 
-| recipe | personas | scenes | avatar | layout |
-| --- | --- | --- | --- | --- |
-| `classic` | `analyst` | `concept` | — | `scenes` |
-| `presenter` | all five | `presenter`, `chart`, `image`, `concept` | `hedra` | `pip` |
+| recipe | personas | styles | scenes | avatar | layout |
+| --- | --- | --- | --- | --- | --- |
+| `classic` | `analyst`, `anchor`, `gentle`, `skeptic` | all six | `concept` | — | `scenes` |
+| `presenter` | all five | all six | `presenter`, `chart`, `image`, `concept` | `hedra` | `pip` |
+
+Persona and style are picked independently from the clip id, so a day's clips do not all sound or
+unfold the same way, and a rerun of the same clip picks the same pair.
 
 | kind | id | what it is |
 | --- | --- | --- |
@@ -120,14 +124,24 @@ The Mandarin five speak through `openrouter` with MiniMax system voices
 honours neither delivery tags nor an instruction, so the voice strips tags before synthesis and the
 Mandarin personas declare none.
 
+Styles (`src/plugins/styles.ts`) are the shape a script takes, injected into the script prompt
+under the persona's tone: `cold-open` (hardest number first, no set-up), `counter` (state the
+consensus, then turn it), `three-things` (three facts, strongest last), `question` (ask it once,
+answer it outright), `timeline` (what changed, what it triggered, what comes next) and `stake` (who
+wins or loses and by how much). Each carries an `arc` — what each beat does — and its own line
+rules on top of the base ones, which ban throat-clearing and padding, ask for one beat under eight
+words, and require a kicker rather than a summary at the end. The chosen style is written into
+`.work/<date>/<clipId>/script.json`, so changing it regenerates that script rather than reusing the
+cached one.
+
 The `hedra` avatar animates the persona portrait with the model `SHORTS_HEDRA_MODEL` names
 (default `kling-ai-avatar-v2`, chunked at 58 s to stay under its 60 s audio cap;
 `hedra-character-3` takes up to 600 s), at
 9:16 and 720p. Narration longer than one call is chunked and concatenated.
 
-Overrides, all optional: `SHORTS_RECIPE`, `SHORTS_PERSONA`, `SHORTS_VOICE`, `SHORTS_AVATAR`
-(`--recipe <id>` beats `SHORTS_RECIPE`). A persona whose voice provider has no key falls back to
-the first provider that does.
+Overrides, all optional: `SHORTS_RECIPE`, `SHORTS_PERSONA`, `SHORTS_SCRIPT_STYLE`, `SHORTS_VOICE`,
+`SHORTS_AVATAR` (`--recipe <id>` beats `SHORTS_RECIPE`). A persona whose voice provider has no key
+falls back to the first provider that does.
 
 **Adding one** — write a file under `src/plugins/{sources,voices,scenes,avatars}/` exporting a
 `Source`, `VoiceProvider`, `SceneRenderer` or `AvatarProvider` (types in `src/plugin.ts`), then add
@@ -136,7 +150,8 @@ registry makes it selectable with `--sources`. A scene renderer declares the zod
 script LLM must fill and a one-line `hint` telling it when to pick that scene;
 `src/pipeline/segments.ts` has the shared
 ffmpeg helpers (`kenBurns`, `fitVideo`, `slice`, `concat`, `stillFromUrl`, `stillFromPrompt`).
-Recipes live in `src/plugins/recipes.ts`.
+A script style is one entry in `src/plugins/styles.ts` — an `arc` and its `lines` rules; recipes
+live in `src/plugins/recipes.ts`.
 
 ## Environment
 
@@ -147,10 +162,10 @@ that host the same files come from S3), `OPENSEARCH_URL` (the domain holding `in
 signed SigV4 as `es` in `AWS_REGION`; unset disables the `documents` source).
 
 Knobs (all optional, see `.env.example`): `SHORTS_TEXT_MODEL` (default `gpt-5-mini`), `SHORTS_LANG`
-(`en` | `zh`), `SHORTS_STYLE`, `SHORTS_IMAGE_MODEL`, `SHORTS_TTS_MODEL`,
-`SHORTS_OPENROUTER_TTS_MODEL` (default `minimax/speech-2.8-turbo`), `SHORTS_ALIGN_MODEL` (default
-`openai/whisper-1`), `SHORTS_VOICE_ID`, `SHORTS_HEDRA_MODEL`, `SHORTS_DESK_PROJECT_ID`,
-`SHORTS_SIGNAL_PROJECT_ID` (default `SOWL83z`), `SHORTS_DOC_TYPES` (default
+(`en` | `zh`), `SHORTS_STYLE` (image art direction, not the script style), `SHORTS_IMAGE_MODEL`,
+`SHORTS_TTS_MODEL`, `SHORTS_OPENROUTER_TTS_MODEL` (default `minimax/speech-2.8-turbo`),
+`SHORTS_ALIGN_MODEL` (default `openai/whisper-1`), `SHORTS_VOICE_ID`, `SHORTS_HEDRA_MODEL`,
+`SHORTS_DESK_PROJECT_ID`, `SHORTS_SIGNAL_PROJECT_ID` (default `SOWL83z`), `SHORTS_DOC_TYPES` (default
 `sell_side_report,sell_side_comments,expert_call`), `SHORTS_COVERAGE_ONLY` (default off),
 `HEDRA_BASE_URL` (default `https://api.hedra.com/v3`), plus the plugin selectors above.
 

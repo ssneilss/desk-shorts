@@ -44,7 +44,6 @@ function toClip(date: string, { item, script, voice, rendered }: Publishable): S
   };
 }
 
-/** Copy media into the workspace, merge into the day's doc, validate, write. */
 export async function publish(date: string, entries: Publishable[]): Promise<ShortsDoc> {
   const dir = paths.mediaDir(date);
   ensureDir(dir);

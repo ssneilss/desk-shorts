@@ -45,6 +45,7 @@ program
         const resolved = resolve(opts.recipe ?? cfg.recipe, item.id);
         log(
           `${item.id}: recipe ${resolved.recipe.id}, persona ${resolved.persona.id}, voice ${resolved.voice.id}` +
+            `${resolved.style ? `, style ${resolved.style.id}` : ''}` +
             `${resolved.avatar ? `, avatar ${resolved.avatar.id}` : ''}`,
         );
         await writeJson(path.join(dir, 'item.json'), item);

@@ -14,7 +14,6 @@ export async function dailyFiles(): Promise<string[]> {
   }
 }
 
-/** Validates each file against the shorts schema; returns true when all pass. */
 export async function validateFiles(files: string[]): Promise<boolean> {
   if (!files.length) {
     console.log('no shorts/daily/*.json to validate');

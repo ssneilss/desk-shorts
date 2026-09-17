@@ -1,7 +1,6 @@
 import { registry, type Registry, type Source, type SourceItem } from '../plugin';
 import { log } from '../util';
 
-/** `--sources` / default: every registered source, validated against the registry. */
 export function pickSources(value?: string, reg: Registry = registry): Source[] {
   const names = (value ?? '').split(',').map((n) => n.trim()).filter(Boolean);
   if (!names.length) return reg.sources;

@@ -19,7 +19,6 @@ const frameCount = (seconds: number) => Math.max(2, Math.round(seconds * fps));
 const encodeSegment = (args: string[], seconds: number, out: string) =>
   ffmpeg([...args, '-frames:v', String(frameCount(seconds)), '-r', String(fps), '-an', ...ENCODE, out]);
 
-/** Slow zoom over a still, exactly `seconds` long. */
 export const kenBurns = (still: string, seconds: number, out: string) =>
   encodeSegment(
     [
@@ -73,6 +72,6 @@ export async function stillFromUrl(url: string, out: string): Promise<boolean> {
 
 /** Generate a still from `prompt` (cached as `<out>.png`) and fit it to portrait. */
 export async function stillFromPrompt(prompt: string, out: string): Promise<void> {
-  const raw = await cachedFile(`${out}.png`, () => generateImage(`${prompt}. ${cfg.style}`));
+  const raw = await cachedFile(`${out}.png`, () => generateImage(`${prompt}. ${cfg.artStyle}`));
   await toPortrait(raw, out);
 }

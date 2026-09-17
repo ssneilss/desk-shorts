@@ -20,6 +20,15 @@ export interface Persona {
   portraitPrompt: string;
 }
 
+export interface Style {
+  id: string;
+  name: string;
+  /** The beat-by-beat shape a clip in this style follows. */
+  arc: string;
+  /** Line-craft rules layered on the base ones for this shape. */
+  lines: string;
+}
+
 export interface Word {
   text: string;
   start: number;
@@ -99,6 +108,8 @@ export interface Recipe {
   personas: string[];
   /** Allowed scene kinds, first is the default. */
   scenes: string[];
+  /** Script shapes a clip may take; a clip picks by hash unless overridden. */
+  styles?: string[];
   /** AvatarProvider id — enables the presenter stage. */
   avatar?: string;
   /** `pip` overlays the presenter bottom-right on non-presenter beats. */
@@ -111,6 +122,7 @@ export interface Plugin {
   scenes?: SceneRenderer[];
   avatars?: AvatarProvider[];
   personas?: Persona[];
+  styles?: Style[];
   recipes?: Recipe[];
   sources?: Source[];
 }
@@ -120,11 +132,13 @@ export interface Registry {
   scene(kind: string): SceneRenderer;
   avatar(id: string): AvatarProvider;
   persona(id: string): Persona;
+  style(id: string): Style;
   recipe(id: string): Recipe;
   source(id: string): Source;
   voices: VoiceProvider[];
   avatars: AvatarProvider[];
   personas: Persona[];
+  styles: Style[];
   sources: Source[];
 }
 
@@ -157,17 +171,20 @@ export function buildRegistry(list: Plugin[]): Registry {
   const voices = index(list, 'voice', (p) => p.voices, (v) => v.id);
   const avatars = index(list, 'avatar', (p) => p.avatars, (v) => v.id);
   const personas = index(list, 'persona', (p) => p.personas, (v) => v.id);
+  const styles = index(list, 'style', (p) => p.styles, (v) => v.id);
   const sources = index(list, 'source', (p) => p.sources, (v) => v.id);
   return {
     voice: lookup(voices, 'voice'),
     scene: lookup(index(list, 'scene', (p) => p.scenes, (v) => v.kind), 'scene'),
     avatar: lookup(avatars, 'avatar'),
     persona: lookup(personas, 'persona'),
+    style: lookup(styles, 'style'),
     recipe: lookup(index(list, 'recipe', (p) => p.recipes, (v) => v.id), 'recipe'),
     source: lookup(sources, 'source'),
     voices: [...voices.values()],
     avatars: [...avatars.values()],
     personas: [...personas.values()],
+    styles: [...styles.values()],
     sources: [...sources.values()],
   };
 }
@@ -177,6 +194,7 @@ export const registry = buildRegistry(plugins);
 export interface Resolved {
   recipe: Recipe;
   persona: Persona;
+  style?: Style;
   voice: VoiceProvider;
   avatar?: AvatarProvider;
   scenes: SceneRenderer[];
@@ -185,6 +203,7 @@ export interface Resolved {
 export interface Overrides {
   lang?: string;
   persona?: string;
+  style?: string;
   voice?: string;
   avatar?: string;
 }
@@ -217,6 +236,19 @@ function pickVoice(persona: Persona, over: Overrides, reg: Registry): VoiceProvi
   return first;
 }
 
+function pickStyle(
+  recipe: Recipe,
+  clipId: string,
+  over: Overrides,
+  reg: Registry,
+): Style | undefined {
+  if (over.style) return reg.style(over.style);
+  const allowed = recipe.styles ?? [];
+  if (!allowed.length) return undefined;
+  const wanted = allowed[hash(`${clipId} style`) % allowed.length];
+  return wanted ? reg.style(wanted) : undefined;
+}
+
 function pickAvatar(recipe: Recipe, over: Overrides, reg: Registry): AvatarProvider | undefined {
   const wanted = over.avatar || recipe.avatar;
   if (!wanted) return undefined;
@@ -236,9 +268,11 @@ export function resolve(
   const recipe = reg.recipe(recipeId);
   const avatar = pickAvatar(recipe, over, reg);
   const persona = pickPersona(recipe, clipId, over, reg);
+  const style = pickStyle(recipe, clipId, over, reg);
   return {
     recipe,
     persona,
+    ...(style ? { style } : {}),
     voice: pickVoice(persona, over, reg),
     ...(avatar ? { avatar } : {}),
     scenes: recipe.scenes
